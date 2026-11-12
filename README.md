@@ -175,7 +175,7 @@ AI-generated code reviews may not identify every issue or may occasionally provi
 
 Computer Science and Engineering Student
 
-GitHub: [YOUR_GITHUB_PROFILE](https://github.com/YOUR_USERNAME)
+GitHub:https://github.com/VIGNESHWARAN-1249
 
 ---
 
