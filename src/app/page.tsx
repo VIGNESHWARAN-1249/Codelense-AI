@@ -174,7 +174,7 @@ export default function Home() {
         </h1>
 
         <p className="hero-copy">
-          Paste your code, get a second opinion, and understand
+          Paste your code and understand
           what needs to be improved.
         </p>
 
@@ -282,7 +282,7 @@ export default function Home() {
 
           <p className="privacy-note">
             <ShieldCheck size={13} />
-            Your code is sent securely to the AI provider for analysis.
+            Your code is sent for analysis.
           </p>
         </div>
 
