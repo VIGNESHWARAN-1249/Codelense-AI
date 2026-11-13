@@ -15,19 +15,40 @@ const ALLOWED_LANGUAGES = [
   "PHP",
 ];
 
+const sleep = (ms: number) =>
+  new Promise((resolve) => setTimeout(resolve, ms));
+
+function getStatusCode(error: unknown): number | undefined {
+  if (typeof error !== "object" || error === null) {
+    return undefined;
+  }
+
+  const err = error as {
+    status?: number;
+    code?: number;
+    message?: string;
+  };
+
+  if (typeof err.status === "number") return err.status;
+  if (typeof err.code === "number") return err.code;
+
+  const message = err.message ?? "";
+  const match = message.match(/\b(429|500|502|503|504)\b/);
+
+  return match ? Number(match[1]) : undefined;
+}
+
 export async function POST(request: Request) {
   try {
-    // Get Gemini API key
     const apiKey = process.env.GEMINI_API_KEY;
 
     if (!apiKey) {
       return Response.json(
-        { error: "GEMINI_API_KEY is missing in Vercel environment variables." },
+        { error: "GEMINI_API_KEY is missing in environment variables." },
         { status: 500 }
       );
     }
 
-    // Read request body
     const body = await request.json();
 
     const code =
@@ -36,7 +57,6 @@ export async function POST(request: Request) {
     const language =
       typeof body.language === "string" ? body.language : "";
 
-    // Validate code
     if (!code.trim()) {
       return Response.json(
         { error: "Please paste some code first." },
@@ -51,7 +71,6 @@ export async function POST(request: Request) {
       );
     }
 
-    // Validate programming language
     if (!ALLOWED_LANGUAGES.includes(language)) {
       return Response.json(
         { error: "Unsupported programming language." },
@@ -59,7 +78,6 @@ export async function POST(request: Request) {
       );
     }
 
-    // Initialize Gemini
     const ai = new GoogleGenAI({ apiKey });
 
     const prompt = `
@@ -105,14 +123,50 @@ ${code}
 \`\`\`
 `;
 
-    // Generate Gemini streaming response
-    const stream = await ai.models.generateContentStream({
-  model: "gemini-3.8-flash",
-  contents: prompt,
-  config: {
-    maxOutputTokens: 4096,
-  },
-});
+    // Retry Gemini when temporary server errors occur.
+    let stream: Awaited<
+      ReturnType<typeof ai.models.generateContentStream>
+    > | undefined;
+
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        console.log(`Gemini generation attempt: ${attempt}`);
+
+        stream = await ai.models.generateContentStream({
+          model: "gemini-3.8-flash",
+          contents: prompt,
+          config: {
+            maxOutputTokens: 2048,
+          },
+        });
+
+        break;
+      } catch (error) {
+        const status = getStatusCode(error);
+
+        console.error(
+          `Gemini attempt ${attempt} failed:`,
+          error
+        );
+
+        const retryable =
+          status === 429 ||
+          status === 500 ||
+          status === 502 ||
+          status === 503 ||
+          status === 504;
+
+        if (!retryable || attempt === 3) {
+          throw error;
+        }
+
+        await sleep(attempt * 2000);
+      }
+    }
+
+    if (!stream) {
+      throw new Error("Gemini service is temporarily unavailable.");
+    }
 
     const encoder = new TextEncoder();
 
@@ -121,7 +175,7 @@ ${code}
         let receivedText = false;
 
         try {
-          for await (const chunk of stream) {
+          for await (const chunk of stream!) {
             const text = chunk.text;
 
             if (text) {
@@ -168,18 +222,28 @@ ${code}
     });
 
   } catch (error) {
-    // Show actual Gemini error in Vercel logs
     console.error("CodeLens API error:", error);
 
-    const errorMessage =
-      error instanceof Error
-        ? error.message
-        : "Unknown Gemini API error";
+    const status = getStatusCode(error);
+
+    let message = "Unable to generate the code review.";
+
+    if (status === 429) {
+      message = "Gemini API quota or rate limit exceeded. Please try later.";
+    } else if (status === 503) {
+      message = "Gemini is experiencing high demand. Please try again later.";
+    } else if (status === 504) {
+      message = "Gemini request timed out. Please try again.";
+    } else if (status === 401 || status === 403) {
+      message = "Gemini API authentication failed. Check your API key.";
+    } else if (status === 404) {
+      message = "Gemini model not found or unavailable.";
+    } else if (error instanceof Error) {
+      message = error.message;
+    }
 
     return Response.json(
-      {
-        error: errorMessage,
-      },
+      { error: message },
       { status: 500 }
     );
   }
