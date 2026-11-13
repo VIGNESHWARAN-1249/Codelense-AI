@@ -30,32 +30,21 @@ const languages = [
   "PHP",
 ];
 
-const starter = `public class Main {
-    public static int findMax(int[] numbers) {
-        int max = 0;
-
-        for (int i = 0; i <= numbers.length; i++) {
-            if (numbers[i] > max) {
-                max = numbers[i];
-            }
-        }
-
-        return max;
-    }
-
-    public static void main(String[] args) {
-        int[] values = {4, 9, 2, 15, 6};
-        System.out.println(findMax(values));
-    }
-}`;
-
 export default function Home() {
   const [language, setLanguage] = useState("Java");
-  const [code, setCode] = useState(starter);
+  const [code, setCode] = useState("");
   const [review, setReview] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [copied, setCopied] = useState(false);
+
+  function handleLanguageChange(newLanguage: string) {
+    setLanguage(newLanguage);
+    setCode("");
+    setReview("");
+    setError("");
+    setCopied(false);
+  }
 
   async function runReview() {
     setError("");
@@ -109,12 +98,9 @@ export default function Home() {
         if (done) break;
 
         result += decoder.decode(value, { stream: true });
-
-        // Display received text immediately
         setReview(result);
       }
 
-      // Read any remaining buffered text
       result += decoder.decode();
       setReview(result);
 
@@ -178,30 +164,26 @@ export default function Home() {
         </div>
       </header>
 
-      
-<section className="hero">
-  <div className="eyebrow">
-    CODE REVIEW TOOL
-  </div>
+      <section className="hero">
+        <div className="eyebrow">CODE REVIEW TOOL</div>
 
-  <h1>
-    Find problems in your code.
-    <br />
-    <span>Fix them before they grow.</span>
-  </h1>
+        <h1>
+          Find problems in your code.
+          <br />
+          <span>Fix them before they grow.</span>
+        </h1>
 
-  <p className="hero-copy">
-    Paste your code, get a second opinion, and understand
-    what needs to be improved.
-  </p>
+        <p className="hero-copy">
+          Paste your code, get a second opinion, and understand
+          what needs to be improved.
+        </p>
 
-  <div className="hero-pills">
-    <span>Bug detection</span>
-    <span>Code suggestions</span>
-    <span>Complexity analysis</span>
-  </div>
-</section>
-
+        <div className="hero-pills">
+          <span>Bug detection</span>
+          <span>Code suggestions</span>
+          <span>Complexity analysis</span>
+        </div>
+      </section>
 
       <section className="workspace" id="review">
         <div className="panel editor-panel">
@@ -219,7 +201,8 @@ export default function Home() {
               <select
                 aria-label="Programming language"
                 value={language}
-                onChange={(e) => setLanguage(e.target.value)}
+                disabled={loading}
+                onChange={(e) => handleLanguageChange(e.target.value)}
               >
                 {languages.map((item) => (
                   <option key={item} value={item}>
@@ -251,7 +234,7 @@ export default function Home() {
               aria-label="Code to review"
               value={code}
               onChange={(e) => setCode(e.target.value)}
-              placeholder="Paste your code here..."
+              placeholder={`Enter your ${language} code here...`}
               disabled={loading}
             />
           </div>
@@ -267,6 +250,7 @@ export default function Home() {
                 setCode("");
                 setError("");
                 setReview("");
+                setCopied(false);
               }}
               disabled={loading}
             >
@@ -384,7 +368,7 @@ export default function Home() {
           <div className="results-bottom">
             <span>
               <span className="status-dot" />
-              Powered by Gemini
+              Powered by Groq
             </span>
 
             <span>AI can make mistakes — verify suggestions.</span>
