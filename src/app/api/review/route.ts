@@ -17,15 +17,17 @@ const ALLOWED_LANGUAGES = [
 
 export async function POST(request: Request) {
   try {
+    // Get Gemini API key
     const apiKey = process.env.GEMINI_API_KEY;
 
     if (!apiKey) {
       return Response.json(
-        { error: "Gemini API key is missing. Check your .env.local file." },
+        { error: "GEMINI_API_KEY is missing in Vercel environment variables." },
         { status: 500 }
       );
     }
 
+    // Read request body
     const body = await request.json();
 
     const code =
@@ -57,6 +59,7 @@ export async function POST(request: Request) {
       );
     }
 
+    // Initialize Gemini
     const ai = new GoogleGenAI({ apiKey });
 
     const prompt = `
@@ -102,15 +105,14 @@ ${code}
 \`\`\`
 `;
 
-    // Start Gemini streaming generation
+    // Generate Gemini streaming response
     const stream = await ai.models.generateContentStream({
-      model: "gemini-3.8-flash",
-      contents: prompt,
-      config: {
-        maxOutputTokens: 4096,
-        temperature: 0.3,
-      },
-    });
+  model: "gemini-3.8-flash",
+  contents: prompt,
+  config: {
+    maxOutputTokens: 4096,
+  },
+});
 
     const encoder = new TextEncoder();
 
@@ -124,10 +126,7 @@ ${code}
 
             if (text) {
               receivedText = true;
-
-              controller.enqueue(
-                encoder.encode(text)
-              );
+              controller.enqueue(encoder.encode(text));
             }
           }
 
@@ -169,12 +168,17 @@ ${code}
     });
 
   } catch (error) {
+    // Show actual Gemini error in Vercel logs
     console.error("CodeLens API error:", error);
+
+    const errorMessage =
+      error instanceof Error
+        ? error.message
+        : "Unknown Gemini API error";
 
     return Response.json(
       {
-        error:
-          "Unable to generate the code review. Check your API key, model access, and server logs.",
+        error: errorMessage,
       },
       { status: 500 }
     );
