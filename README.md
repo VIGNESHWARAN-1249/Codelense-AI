@@ -81,13 +81,13 @@ npm install
 
 Create a `.env.local` file in the root directory of the project.
 
-Add your Gemini API key:
+Add your Groq API key:
 
 ```env
-GEMINI_API_KEY=your_gemini_api_key
+GROQ_API_KEY=your_groq_api_key
 ```
 
-Get an API key from [Google AI Studio](https://aistudio.google.com/apikey).
+Get an API key from [Groq API]((https://console.groq.com/keys)).
 
 **Important:** Never expose your API key in frontend code or commit `.env.local` to GitHub.
 
